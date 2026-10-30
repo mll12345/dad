@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>叫微信</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 48px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, #07c160 0%, #06b358 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 30px rgba(7, 193, 96, 0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+            user-select: none;
+        }
+        .btn:active { transform: scale(0.96); box-shadow: 0 4px 15px rgba(7, 193, 96, 0.4); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn .icon { font-size: 1.6rem; }
+        .qrcode-section {
+            margin-top: 40px;
+            padding: 24px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .qrcode-section h2 { font-size: 1.1rem; margin-bottom: 16px; opacity: 0.8; }
+        .qrcode-img {
+            width: 200px;
+            height: 200px;
+            background: #fff;
+            border-radius: 12px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qrcode-img img { width: 180px; height: 180px; border-radius: 8px; }
+        .tip {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.6;
+        }
+        .tip strong { color: #07c160; }
+        .copied-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 28px;
+            background: rgba(0,0,0,0.85);
+            color: #07c160;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 999;
+        }
+        .copied-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        @media (max-width: 480px) {
+            .btn { padding: 16px 40px; font-size: 1.2rem; }
+            .qrcode-img { width: 160px; height: 160px; }
+            .qrcode-img img { width: 140px; height: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>点击按钮唤起微信并复制消息</h1>
+        <button class="btn" id="callBtn" onclick="callWeChat()">
+            <span class="icon">📞</span>
+            <span>叫</span>
+        </button>
+
+        <div class="qrcode-section">
+            <h2>微信号：mre2020</h2>
+            <div class="qrcode-img" id="qrcode">
+                <!-- 二维码将由 JS 生成 -->
+            </div>
+            <p class="tip">
+                操作步骤：<br>
+                1. 点击上方 <strong>「叫」</strong> 按钮 → 自动打开微信 & 复制「父亲」<br>
+                2. 长按识别下方二维码 → 进入 <strong>mre2020</strong> 聊天<br>
+                3. 长按输入框 → <strong>粘贴发送</strong>
+            </p>
+        </div>
+    </div>
+
+    <div class="copied-toast" id="toast">已复制「父亲」到剪贴板</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        // 生成微信号二维码（微信个人二维码格式）
+        // 注意：实际微信个人二维码需用户自己在微信「我-二维码名片」获取
+        // 这里生成的是文本二维码，长按可识别文本内容
+        new QRCode(document.getElementById('qrcode'), {
+            text: 'mre2020',
+            width: 180,
+            height: 180,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        async function callWeChat() {
+            const btn = document.getElementById('callBtn');
+            const toast = document.getElementById('toast');
+
+            // 1. 复制"父亲"到剪贴板
+            try {
+                await navigator.clipboard.writeText('父亲');
+                showToast();
+            } catch (e) {
+                // 降级方案
+                const ta = document.createElement('textarea');
+                ta.value = '父亲';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast();
+            }
+
+            // 2. 尝试唤起微信
+            const wechatScheme = 'wechat://';
+            const start = Date.now();
+            window.location.href = wechatScheme;
+
+            // 3. 如果微信未安装或未唤起，给出提示
+            setTimeout(() => {
+                if (Date.now() - start < 1500) {
+                    // 可能未安装微信或被拦截
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="icon">⚠️</span><span>请手动打开微信</span>';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="icon">📞</span><span>叫</span>';
+                    }, 3000);
+                }
+            }, 1000);
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 防止页面卸载时残留
+        window.addEventListener('beforeunload', () => {
+            document.getElementById('toast').classList.remove('show');
+        });
+    </script>
+</body>
+</html>
