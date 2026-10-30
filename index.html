@@ -20,12 +20,97 @@
             height: 100vh;
             max-width: 100%;
             max-height: 100%;
+            position: relative;
         }
         .video-container iframe {
             width: 100%;
             height: 100%;
             border: none;
             display: block;
+        }
+        /* 音量控制区域 */
+        .volume-section {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .volume-hint {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            white-space: nowrap;
+            animation: pulse 2s ease-in-out infinite;
+            pointer-events: auto;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        .volume-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            pointer-events: auto;
+        }
+        .volume-icon {
+            font-size: 1.4rem;
+            color: rgba(255,255,255,0.8);
+            user-select: none;
+        }
+        .volume-slider-container {
+            position: relative;
+            width: 180px;
+            height: 6px;
+        }
+        .volume-slider-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .volume-slider-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #07c160, #0fd472);
+            border-radius: 3px;
+            transition: width 0.1s ease;
+        }
+        .volume-slider-thumb {
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 2px rgba(7,193,96,0.3);
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            z-index: 2;
+        }
+        .volume-slider-thumb:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 0 3px rgba(7,193,96,0.5);
+        }
+        .volume-slider-thumb:active {
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+        .volume-percent {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #07c160;
+            min-width: 40px;
+            text-align: right;
+            user-select: none;
         }
         .call-section {
             position: fixed;
@@ -68,7 +153,7 @@
         /* 自定义 Toast */
         .toast {
             position: fixed;
-            bottom: 100px;
+            bottom: 160px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
             padding: 14px 28px;
@@ -84,17 +169,39 @@
             pointer-events: none;
         }
         .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        @media (max-width: 480px) {
+            .volume-slider-container { width: 130px; }
+            .volume-hint { font-size: 0.75rem; }
+            .volume-percent { min-width: 35px; }
+        }
     </style>
 </head>
 <body>
     <div class="video-container">
         <iframe 
+            id="biliPlayer"
             src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0&loop=1" 
             scrolling="no" 
             allowfullscreen="true"
             allow="autoplay; encrypted-media; picture-in-picture"
             title="Bilibili 视频播放器">
         </iframe>
+    </div>
+
+    <!-- 音量控制 -->
+    <div class="volume-section">
+        <div class="volume-hint">🔊 温馨提示：请调大音量，效果更佳</div>
+        <div class="volume-slider-wrap">
+            <span class="volume-icon">🔈</span>
+            <div class="volume-slider-container" id="volumeSlider" role="slider" aria-label="音量" tabindex="0">
+                <div class="volume-slider-bg">
+                    <div class="volume-slider-fill" id="volumeFill"></div>
+                </div>
+                <div class="volume-slider-thumb" id="volumeThumb"></div>
+            </div>
+            <span class="volume-percent" id="volumePercent">100%</span>
+            <span class="volume-icon" style="font-size: 1.6rem;">🔊</span>
+        </div>
     </div>
 
     <div class="call-section">
@@ -109,9 +216,106 @@
     <script>
         const toast = document.getElementById('toast');
         const btn = document.getElementById('callBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeFill = document.getElementById('volumeFill');
+        const volumeThumb = document.getElementById('volumeThumb');
+        const volumePercent = document.getElementById('volumePercent');
+        const biliPlayer = document.getElementById('biliPlayer');
 
+        let volume = 1.0; // 默认最大音量
+        let isDragging = false;
+
+        // 尝试通过 postMessage 控制 B 站播放器音量
+        function setPlayerVolume(vol) {
+            try {
+                biliPlayer.contentWindow.postMessage({
+                    type: 'volume',
+                    volume: vol
+                }, 'https://player.bilibili.com');
+            } catch (e) {
+                // 跨域限制，忽略
+            }
+        }
+
+        // 更新 UI
+        function updateVolumeUI(vol) {
+            volume = Math.max(0, Math.min(1, vol));
+            const percent = Math.round(volume * 100);
+            volumeFill.style.width = percent + '%';
+            volumeThumb.style.left = percent + '%';
+            volumePercent.textContent = percent + '%';
+            
+            // 更新图标
+            const icons = ['🔇', '🔈', '🔉', '🔊'];
+            const iconIndex = volume === 0 ? 0 : volume < 0.34 ? 1 : volume < 0.67 ? 2 : 3;
+            document.querySelectorAll('.volume-icon')[0].textContent = icons[iconIndex];
+            document.querySelectorAll('.volume-icon')[1].textContent = icons[iconIndex];
+        }
+
+        // 初始化：尝试设置最大音量
+        function initVolume() {
+            updateVolumeUI(1.0);
+            // 页面加载后尝试设置播放器音量
+            setTimeout(() => setPlayerVolume(1.0), 1000);
+            setTimeout(() => setPlayerVolume(1.0), 3000);
+        }
+
+        // 拖拽逻辑
+        function handleDrag(clientX) {
+            const rect = volumeSlider.getBoundingClientRect();
+            let percent = (clientX - rect.left) / rect.width;
+            percent = Math.max(0, Math.min(1, percent));
+            updateVolumeUI(percent);
+            setPlayerVolume(percent);
+        }
+
+        volumeSlider.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            handleDrag(e.clientX);
+            e.preventDefault();
+        });
+
+        volumeSlider.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            handleDrag(e.touches[0].clientX);
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) handleDrag(e.clientX);
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging) handleDrag(e.touches[0].clientX);
+        }, { passive: false });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        window.addEventListener('touchend', () => { isDragging = false; });
+
+        // 键盘支持
+        volumeSlider.addEventListener('keydown', (e) => {
+            let step = 0.05;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                updateVolumeUI(volume + step);
+                setPlayerVolume(volume);
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                updateVolumeUI(volume - step);
+                setPlayerVolume(volume);
+                e.preventDefault();
+            } else if (e.key === 'Home') {
+                updateVolumeUI(0);
+                setPlayerVolume(0);
+                e.preventDefault();
+            } else if (e.key === 'End') {
+                updateVolumeUI(1);
+                setPlayerVolume(1);
+                e.preventDefault();
+            }
+        });
+
+        // 叫按钮逻辑
         async function callWeChat() {
-            // 1. 复制"父亲"到剪贴板
             try {
                 await navigator.clipboard.writeText('父亲');
             } catch (e) {
@@ -124,11 +328,9 @@
                 document.body.removeChild(ta);
             }
             
-            // 2. 显示自定义 Toast 提示
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2500);
             
-            // 3. 尝试唤起微信
             const schemes = ['wechat://', 'weixin://', 'wechat://dl/chat'];
             let launched = false;
             for (const scheme of schemes) {
@@ -148,6 +350,9 @@
                 }, 3000);
             }
         }
+
+        // 初始化
+        initVolume();
     </script>
 </body>
 </html>
