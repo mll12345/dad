@@ -149,7 +149,6 @@
         }
         .btn:hover::before { left: 100%; }
         .btn:active { transform: scale(0.97); box-shadow: 0 4px 15px rgba(7, 193, 96, 0.35); }
-        .btn .icon { font-size: 1.4rem; }
         /* 自定义 Toast - 更大更明显 */
         .toast {
             position: fixed;
@@ -219,10 +218,7 @@
     </div>
 
     <div class="call-section">
-        <button class="btn" id="callBtn" onclick="callWeChat()">
-            <span class="icon">📞</span>
-            <span>叫</span>
-        </button>
+        <button class="btn" id="callBtn" onclick="callWeChat()">叫</button>
     </div>
 
     <div class="toast" id="toast">已复制「父亲」</div>
@@ -374,23 +370,34 @@
 
         // 叫按钮逻辑
         async function callWeChat() {
+            // 1. 复制"父亲"到剪贴板
+            let copied = false;
             try {
                 await navigator.clipboard.writeText('父亲');
+                copied = true;
             } catch (e) {
-                const ta = document.createElement('textarea');
-                ta.value = '父亲';
-                ta.style.position = 'fixed'; ta.style.opacity = 0;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = '父亲';
+                    ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    copied = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                } catch (e2) {
+                    copied = false;
+                }
             }
             
+            // 2. 显示 Toast
+            toast.textContent = copied ? '已复制「父亲」' : '复制失败，请手动复制';
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
             
+            // 3. 尝试唤起微信
             const schemes = ['wechat://', 'weixin://', 'wechat://dl/chat'];
             let launched = false;
+            
             for (const scheme of schemes) {
                 try {
                     window.location.href = scheme;
@@ -399,13 +406,18 @@
                 } catch (e) {}
             }
             
+            // 兜底：如果都失败，延迟尝试打开微信下载页或提示
             if (!launched) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="icon">⚠️</span><span>请手动打开微信</span>';
                 setTimeout(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<span class="icon">📞</span><span>叫</span>';
-                }, 3000);
+                    if (!launched) {
+                        btn.disabled = true;
+                        btn.textContent = '请手动打开微信';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = '叫';
+                        }, 3000);
+                    }
+                }, 500);
             }
         }
 
