@@ -8,91 +8,129 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background: #000;
+            background: #0d0d0d;
             display: flex;
             flex-direction: column;
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             color: #fff;
+            padding: 24px 16px;
+        }
+        .wrapper {
+            width: 100%;
+            max-width: 900px;
+        }
+        .video-card {
+            background: #1a1a1a;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
+            margin-bottom: 24px;
         }
         .video-container {
-            width: 100%;
-            max-width: 1200px;
             aspect-ratio: 16 / 9;
+            background: #000;
         }
         .video-container iframe {
             width: 100%;
             height: 100%;
             border: none;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            display: block;
         }
         .call-section {
-            padding: 24px 16px;
             text-align: center;
         }
         .btn {
             display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 16px 40px;
-            font-size: 1.3rem;
+            gap: 10px;
+            padding: 18px 48px;
+            font-size: 1.2rem;
             font-weight: 700;
             color: #fff;
-            background: linear-gradient(135deg, #07c160 0%, #06b358 100%);
+            background: linear-gradient(135deg, #07c160 0%, #059e4a 100%);
             border: none;
-            border-radius: 50px;
+            border-radius: 56px;
             cursor: pointer;
-            box-shadow: 0 8px 30px rgba(7, 193, 96, 0.4);
-            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 
+                0 8px 30px rgba(7, 193, 96, 0.35),
+                0 0 0 1px rgba(7, 193, 96, 0.15),
+                inset 0 1px 0 rgba(255,255,255,0.15);
+            transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
             user-select: none;
+            position: relative;
+            overflow: hidden;
         }
-        .btn:active { transform: scale(0.96); box-shadow: 0 4px 15px rgba(7, 193, 96, 0.4); }
-        .btn .icon { font-size: 1.5rem; }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.4s;
+        }
+        .btn:hover::before { left: 100%; }
+        .btn:active { transform: scale(0.97); box-shadow: 0 4px 15px rgba(7, 193, 96, 0.35); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn .icon { font-size: 1.4rem; }
         .toast {
             position: fixed;
-            bottom: 30px;
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            padding: 12px 28px;
-            background: rgba(0,0,0,0.85);
+            padding: 14px 32px;
+            background: rgba(15, 15, 15, 0.95);
             color: #07c160;
-            border-radius: 8px;
+            border: 1px solid rgba(7, 193, 96, 0.3);
+            border-radius: 12px;
             font-size: 0.95rem;
             opacity: 0;
-            transition: transform 0.3s, opacity 0.3s;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
             z-index: 999;
+            backdrop-filter: blur(10px);
         }
         .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-        @media (max-width: 768px) {
-            .video-container { border-radius: 0; }
-            .video-container iframe { border-radius: 0; }
-            .btn { padding: 14px 32px; font-size: 1.1rem; }
+        .hint {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.6;
+        }
+        .hint strong { color: rgba(255,255,255,0.7); }
+        @media (max-width: 600px) {
+            body { padding: 16px 12px; }
+            .video-card { border-radius: 12px; }
+            .btn { padding: 16px 40px; font-size: 1.1rem; }
         }
     </style>
 </head>
 <body>
-    <div class="video-container">
-        <iframe 
-            src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0" 
-            scrolling="no" 
-            allowfullscreen="true"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            title="Bilibili 视频播放器">
-        </iframe>
-    </div>
+    <div class="wrapper">
+        <div class="video-card">
+            <div class="video-container">
+                <iframe 
+                    src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0" 
+                    scrolling="no" 
+                    allowfullscreen="true"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    title="Bilibili 视频播放器">
+                </iframe>
+            </div>
+        </div>
 
-    <div class="call-section">
-        <button class="btn" id="callBtn" onclick="callWeChat()">
-            <span class="icon">📞</span>
-            <span>叫</span>
-        </button>
+        <div class="call-section">
+            <button class="btn" id="callBtn" onclick="callWeChat()">
+                <span class="icon">📞</span>
+                <span>叫</span>
+            </button>
+            <p class="hint">点击复制「父亲」并尝试打开微信<br>需手动在微信找到 <strong>mre2020</strong> 粘贴发送</p>
+        </div>
     </div>
 
     <div class="toast" id="toast">已复制「父亲」到剪贴板</div>
 
     <script>
         async function callWeChat() {
+            const btn = document.getElementById('callBtn');
             const toast = document.getElementById('toast');
             
             // 1. 复制"父亲"到剪贴板
@@ -101,6 +139,7 @@
             } catch (e) {
                 const ta = document.createElement('textarea');
                 ta.value = '父亲';
+                ta.style.position = 'fixed'; ta.style.opacity = 0;
                 document.body.appendChild(ta);
                 ta.select();
                 document.execCommand('copy');
@@ -109,10 +148,38 @@
             
             // 显示提示
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => toast.classList.remove('show'), 2800);
             
-            // 2. 尝试唤起微信
-            window.location.href = 'wechat://';
+            // 2. 尝试唤起微信（多种方式兼容）
+            const ua = navigator.userAgent;
+            const isIOS = /iPad|iPhone|iPod/.test(ua);
+            const isAndroid = /Android/.test(ua);
+            
+            // 先尝试通用 scheme
+            const schemes = [
+                'wechat://',           // 通用
+                'weixin://',           // 备选
+                'wechat://dl/chat'     // 直达聊天列表
+            ];
+            
+            let launched = false;
+            for (const scheme of schemes) {
+                try {
+                    window.location.href = scheme;
+                    launched = true;
+                    break;
+                } catch (e) {}
+            }
+            
+            // 如果 scheme 失败，给个友好提示
+            if (!launched) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="icon">⚠️</span><span>请手动打开微信</span>';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="icon">📞</span><span>叫</span>';
+                }, 3000);
+            }
         }
     </script>
 </body>
