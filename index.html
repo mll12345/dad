@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bilibili 视频 + 叫微信</title>
+    <title>哎</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -12,27 +12,90 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             color: #fff;
+            overflow: hidden;
         }
-        .video-container {
-            width: 100vw;
-            height: 100vh;
-            max-width: 100%;
-            max-height: 100%;
+        /* 加载层 */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
         }
-        .video-container iframe {
+        #loadingOverlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #07c160;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loadText {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 8px;
+        }
+        .progressBar {
+            width: 240px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+        .progressFill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #07c160, #0fd472);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+        .progressPercent {
+            margin-top: 8px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #07c160;
+        }
+        /* 视频容器 */
+        #videoContainer {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        #videoContainer video {
             width: 100%;
             height: 100%;
-            border: none;
+            object-fit: cover;
             display: block;
         }
-        .call-section {
+        /* 叫按钮 - 初始隐藏 */
+        #callSection {
             position: fixed;
             bottom: 32px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        #callSection.visible {
+            opacity: 1;
+            pointer-events: auto;
         }
         .btn {
             display: inline-flex;
@@ -64,7 +127,6 @@
         }
         .btn:hover::before { left: 100%; }
         .btn:active { transform: scale(0.97); box-shadow: 0 4px 15px rgba(7, 193, 96, 0.35); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn .icon { font-size: 1.4rem; }
         .toast {
             position: fixed;
@@ -86,17 +148,31 @@
     </style>
 </head>
 <body>
-    <div class="video-container">
-        <iframe 
-            src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0&loop=1" 
-            scrolling="no" 
-            allowfullscreen="true"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            title="Bilibili 视频播放器">
-        </iframe>
+    <!-- 加载层 -->
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loadText">视频加载中...</div>
+        <div class="progressBar">
+            <div class="progressFill" id="progressFill"></div>
+        </div>
+        <div class="progressPercent" id="progressPercent">0%</div>
     </div>
 
-    <div class="call-section">
+    <!-- 视频 -->
+    <div id="videoContainer">
+        <video 
+            id="mainVideo"
+            src="video.mp4"
+            autoplay
+            loop
+            muted
+            playsinline
+            preload="auto">
+        </video>
+    </div>
+
+    <!-- 叫按钮（初始隐藏） -->
+    <div id="callSection">
         <button class="btn" id="callBtn" onclick="callWeChat()">
             <span class="icon">📞</span>
             <span>叫</span>
@@ -106,9 +182,50 @@
     <div class="toast" id="toast">已复制「父亲」到剪贴板</div>
 
     <script>
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const callSection = document.getElementById('callSection');
+        const video = document.getElementById('mainVideo');
+        const toast = document.getElementById('toast');
+
+        let callShown = false;
+
+        // 监听视频加载进度
+        video.addEventListener('progress', () => {
+            if (video.buffered.length > 0 && !callShown) {
+                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                const duration = video.duration || 1;
+                const percent = Math.min(100, Math.round((bufferedEnd / duration) * 100));
+                
+                progressFill.style.width = percent + '%';
+                progressPercent.textContent = percent + '%';
+
+                // 20% 显示叫按钮
+                if (percent >= 20 && !callSection.classList.contains('visible')) {
+                    callSection.classList.add('visible');
+                }
+            }
+        });
+
+        // 视频可播放时隐藏加载层
+        video.addEventListener('canplay', () => {
+            loadingOverlay.classList.add('hidden');
+        });
+
+        // 兜底：loadedmetadata 也尝试
+        video.addEventListener('loadedmetadata', () => {
+            if (video.buffered.length > 0) {
+                const percent = Math.min(100, Math.round((video.buffered.end(0) / video.duration) * 100));
+                progressFill.style.width = percent + '%';
+                progressPercent.textContent = percent + '%';
+                if (percent >= 20) callSection.classList.add('visible');
+            }
+        });
+
+        // 叫按钮逻辑
         async function callWeChat() {
             const btn = document.getElementById('callBtn');
-            const toast = document.getElementById('toast');
             
             // 1. 复制"父亲"到剪贴板
             try {
@@ -127,13 +244,8 @@
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2800);
             
-            // 2. 尝试唤起微信（多种方式兼容）
-            const schemes = [
-                'wechat://',           // 通用
-                'weixin://',           // 备选
-                'wechat://dl/chat'     // 直达聊天列表
-            ];
-            
+            // 2. 尝试唤起微信
+            const schemes = ['wechat://', 'weixin://', 'wechat://dl/chat'];
             let launched = false;
             for (const scheme of schemes) {
                 try {
@@ -143,7 +255,6 @@
                 } catch (e) {}
             }
             
-            // 如果 scheme 失败，给个友好提示
             if (!launched) {
                 btn.disabled = true;
                 btn.innerHTML = '<span class="icon">⚠️</span><span>请手动打开微信</span>';
