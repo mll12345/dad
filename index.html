@@ -8,28 +8,18 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             min-height: 100vh;
-            background: #0d0d0d;
+            background: #000;
             display: flex;
             flex-direction: column;
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             color: #fff;
-            padding: 24px 16px;
-        }
-        .wrapper {
-            width: 100%;
-            max-width: 900px;
-        }
-        .video-card {
-            background: #1a1a1a;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.05);
-            margin-bottom: 24px;
         }
         .video-container {
-            aspect-ratio: 16 / 9;
-            background: #000;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            max-height: 100%;
         }
         .video-container iframe {
             width: 100%;
@@ -38,13 +28,17 @@
             display: block;
         }
         .call-section {
-            text-align: center;
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
         }
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            padding: 18px 48px;
+            padding: 16px 40px;
             font-size: 1.2rem;
             font-weight: 700;
             color: #fff;
@@ -74,7 +68,7 @@
         .btn .icon { font-size: 1.4rem; }
         .toast {
             position: fixed;
-            bottom: 40px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
             padding: 14px 32px;
@@ -89,41 +83,24 @@
             backdrop-filter: blur(10px);
         }
         .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-        .hint {
-            margin-top: 16px;
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.45);
-            line-height: 1.6;
-        }
-        .hint strong { color: rgba(255,255,255,0.7); }
-        @media (max-width: 600px) {
-            body { padding: 16px 12px; }
-            .video-card { border-radius: 12px; }
-            .btn { padding: 16px 40px; font-size: 1.1rem; }
-        }
     </style>
 </head>
 <body>
-    <div class="wrapper">
-        <div class="video-card">
-            <div class="video-container">
-                <iframe 
-                    src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0" 
-                    scrolling="no" 
-                    allowfullscreen="true"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    title="Bilibili 视频播放器">
-                </iframe>
-            </div>
-        </div>
+    <div class="video-container">
+        <iframe 
+            src="https://player.bilibili.com/player.html?bvid=BV1dujh6sERm&autoplay=1&high_quality=1&danmaku=0&loop=1" 
+            scrolling="no" 
+            allowfullscreen="true"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            title="Bilibili 视频播放器">
+        </iframe>
+    </div>
 
-        <div class="call-section">
-            <button class="btn" id="callBtn" onclick="callWeChat()">
-                <span class="icon">📞</span>
-                <span>叫</span>
-            </button>
-            <p class="hint">点击复制「父亲」并尝试打开微信<br>需手动在微信找到 <strong>mre2020</strong> 粘贴发送</p>
-        </div>
+    <div class="call-section">
+        <button class="btn" id="callBtn" onclick="callWeChat()">
+            <span class="icon">📞</span>
+            <span>叫</span>
+        </button>
     </div>
 
     <div class="toast" id="toast">已复制「父亲」到剪贴板</div>
@@ -151,11 +128,6 @@
             setTimeout(() => toast.classList.remove('show'), 2800);
             
             // 2. 尝试唤起微信（多种方式兼容）
-            const ua = navigator.userAgent;
-            const isIOS = /iPad|iPhone|iPod/.test(ua);
-            const isAndroid = /Android/.test(ua);
-            
-            // 先尝试通用 scheme
             const schemes = [
                 'wechat://',           // 通用
                 'weixin://',           // 备选
